@@ -4,29 +4,42 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>User Entries</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
 <style>
 /* Add your CSS styling here */
 </style>
 </head>
 <body>
-<div id="entries">Loading entries...</div>
+<form id="userIdForm">
+    <input type="text" id="userIdInput" placeholder="Enter user link e.g., https://tr.instela.com/user/steinhammer--159538">
+    <button type="submit">Fetch Entries</button>
+</form>
+
+<div id="entries">Entries will be displayed here...</div>
 
 <script>
-// This script will fetch all entries and display them in the 'entries' div
+document.getElementById('userIdForm').addEventListener('submit', function(event) {
+    event.preventDefault();
+    const userInput = document.getElementById('userIdInput').value;
+    const userId = userInput.split('--')[1]; // Extract the user ID from the link
+    if (userId) {
+        fetchAllEntries(userId);
+    } else {
+        alert('Please enter a valid user link.');
+    }
+});
+
 async function fetchAllEntries(userId) {
     const baseUrl = `https://tr.instela.com/api/v2/user/${userId}/entries`;
-    const allEntries = [];
-    const entriesDiv = document.getElementById('entries');
+    let allEntries = [];
     
     try {
-        // Initial request to get total pages
         let response = await fetch(baseUrl);
         if (response.ok) {
             let data = await response.json();
             let totalPages = data.pagination.total_pages;
             
             for (let page = 1; page <= totalPages; page++) {
-                // Fetch each page
                 response = await fetch(`${baseUrl}?page=${page}`);
                 if (response.ok) {
                     let pageData = await response.json();
@@ -36,25 +49,25 @@ async function fetchAllEntries(userId) {
                 }
             }
             
-            // Display entries
-            entriesDiv.innerHTML = allEntries.map(entry => 
-                `<div class="entry">
-                    <h3>${entry.title.title}</h3>
-                    <p>${entry.entry}</p>
-                    <p>Positive Votes: ${entry.vote_positive}</p>
-                </div>`
-            ).join('');
+            // Call the function to convert and download the data as Excel
+            convertToExcel(allEntries);
         } else {
             console.error("Failed to fetch initial page");
-            entriesDiv.textContent = 'Failed to load entries.';
         }
     } catch (error) {
         console.error("There was an error fetching the entries", error);
-        entriesDiv.textContent = 'Failed to load entries.';
     }
 }
 
-fetchAllEntries('159538'); // Call the function with your user ID
+function convertToExcel(entries) {
+    // Convert entries to worksheet
+    const worksheet = XLSX.utils.json_to_sheet(entries);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Entries");
+    
+    // Generate Excel file and trigger download
+    XLSX.writeFile(workbook, "UserEntries.xlsx");
+}
 </script>
 </body>
 </html>
