@@ -8,93 +8,81 @@
 <style>
 /* Add your CSS styling here */
 #loading { display: none; }
+#userIdForm { margin-bottom: 20px; }
 </style>
 </head>
 <body>
-<form id="userIdForm">
+<div id="userIdForm">
     <input type="text" id="userIdInput" placeholder="Enter user link e.g., https://tr.instela.com/user/steinhammer--159538">
-    <button type="submit">Fetch Entries</button>
+    <button type="button" onclick="fetchUserEntries()">Fetch Entries</button>
     <div id="loading">Loading...</div>
-</form>
+</div>
 
 <div id="entries">Entries will be displayed here...</div>
 
 <script>
-document.getElementById('userIdForm').addEventListener('submit', function(event) {
-    event.preventDefault();
+function fetchUserEntries() {
     const userInput = document.getElementById('userIdInput').value;
-    const userId = userInput.split('--')[1]; // Extract the user ID from the link
-    if (userId) {
-        document.getElementById('loading').style.display = 'block'; // Show the loading indicator
+    const userIdMatch = userInput.match(/--(\d+)$/); // Regex to extract user ID
+    if (userIdMatch) {
+        const userId = userIdMatch[1];
+        document.getElementById('loading').style.display = 'inline'; // Show loading indicator
         fetchAllEntries(userId);
     } else {
         alert('Please enter a valid user link.');
     }
-});
+}
 
 async function fetchAllEntries(userId) {
     const baseUrl = `https://tr.instela.com/api/v2/user/${userId}/entries`;
     let allEntries = [];
-    
+
     try {
-        let response = await fetch(baseUrl);
+        const response = await fetch(baseUrl);
         if (response.ok) {
-            let data = await response.json();
-            let totalPages = data.pagination.total_pages;
-            
+            const data = await response.json();
+            const totalPages = data.pagination.total_pages;
+
             for (let page = 1; page <= totalPages; page++) {
-                response = await fetch(`${baseUrl}?page=${page}`);
-                if (response.ok) {
-                    let pageData = await response.json();
-                    allEntries.push(...pageData.entries.map(e => reformatEntry(e)));
+                const pageResponse = await fetch(`${baseUrl}?page=${page}`);
+                if (pageResponse.ok) {
+                    const pageData = await pageResponse.json();
+                    allEntries = allEntries.concat(pageData.entries.map(e => reformatEntry(e.entry)));
                 } else {
-                    console.error(`Failed to fetch page ${page}`);
+                    throw new Error(`Failed to fetch page ${page}`);
                 }
             }
-            
-            // Hide the loading indicator
-            document.getElementById('loading').style.display = 'none';
-            
-            // Call the function to convert and download the data as Excel
-convertToExcel(allEntries);
-} else {
-console.error("Failed to fetch initial page");
-// Hide the loading indicator
-document.getElementById('loading').style.display = 'none';
-}
-} catch (error) {
-console.error("There was an error fetching the entries", error);
-// Hide the loading indicator
-document.getElementById('loading').style.display = 'none';
-}
+            convertToExcel(allEntries);
+        } else {
+            throw new Error('Failed to fetch initial page');
+        }
+    } catch (error) {
+        alert("An error occurred while fetching the entries.");
+        console.error("There was an error fetching the entries:", error);
+    } finally {
+        document.getElementById('loading').style.display = 'none'; // Hide loading indicator
+    }
 }
 
 function reformatEntry(entry) {
-if (entry && entry.entry) {
-// Replace image HTML with just the image URL
-entry.entry = entry.entry.replace(/<div class="upload-image">.?<img src="(.?)".*?</div><br>/g, '$1');
+    // Reformat the entry text based on the provided specifications
+    entry = entry.replace(/<br>/g, ' '); // Replace line breaks
+    entry = entry.replace(/<div class="upload-image">.*?<img src="(.*?)".*?<\/div>/g, '$1'); // Keep only image URLs
+    entry = entry.replace(/<a.*?class="bkz ajax".*?>(.*?)<\/a>/g, 'bkz: $1'); // Simplify bkz links
 
-    // Replace bkz links with just the text
-    entry.entry = entry.entry.replace(/<a.*?class="bkz ajax".*?>(.*?)<\/a>/g, 'bkz: $1');
-    
-    // Replace <br> with a space
-    entry.entry = entry.entry.replace(/<br>/g, ' ');
-}
-return entry;
+    // Return the reformatted entry
+    return entry;
 }
 
 function convertToExcel(entries) {
-// Convert entries to worksheet
-const worksheet = XLSX.utils.json_to_sheet(entries);
-const workbook = XLSX.utils.book_new();
-XLSX.utils.book_append_sheet(workbook, worksheet, "Entries");
-// Generate Excel file and trigger download
-XLSX.writeFile(workbook, "UserEntries.xlsx");
+    // Create a new workbook and add the entries
+    const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.json_to_sheet(entries.map(e => ({ entry: e })));
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Entries');
+
+    // Trigger the download
+    XLSX.writeFile(workbook, 'UserEntries.xlsx');
 }
 </script>
-
 </body>
 </html>
-
-
-
