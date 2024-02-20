@@ -141,23 +141,24 @@ async function fetchAllEntries(userId) {
 }
 
 function reformatEntry(text) {
-    // Convert <br> tags to newlines
-    text = text.replace(/<br\s*\/?>/gi, "\n");
+    // Identify and process image URLs
+    text = text.replace(/<img src="(https:\/\/instela--static-info\.cdn\.ampproject\.org\/i\/s\/instela-static\.info\/m\/[^"]+\.jpg).*?" alt="">/g, (match, url) => {
+        return url; // Return the clean URL
+    });
 
-    // Extract and retain only the image URLs from <img> tags, ensure it stops at ".jpg"
-    text = text.replace(/<img src="(.*?.jpg).*?" alt=".*?">/gi, "$1");
+    // Remove any trailing "bkz: instela-static.info" after URLs
+    text = text.replace(/(https:\/\/instela--static-info\.cdn\.ampproject\.org\/i\/s\/instela-static\.info\/m\/[^ ]+\.jpg).*? bkz: instela-static\.info/g, "$1");
 
-    // Replace the whole <div class="upload-image">...</div> with just the first extracted image URL
-    text = text.replace(/<div class="upload-image">.*?<img src="(.*?.jpg).*?".*?<\/div>/gi, "$1");
+    // Correct any "bkz: bkz:" occurrences
+    text = text.replace(/bkz: bkz:/g, "bkz:");
 
-    // Replace "bkz:" links with their text
-    text = text.replace(/<a.*?>(.*?)<\/a>/gi, "bkz: $1");
-
-    // Remove any remaining HTML tags
-    text = text.replace(/<[^>]*>/g, '');
-
-    return text.trim(); // Trim the text for any leading or trailing spaces
+    // Further cleanup for other HTML content
+    text = text.replace(/<\/?[^>]+(>|$)/g, ""); // Remove remaining HTML tags
+    text = text.replace(/(bkz: )?<a [^>]+>([^<]+)<\/a>/g, (match, bkz, linkText) => bkz ? `bkz: ${linkText}` : linkText); // Clean and format bkz links
+    text = text.replace(/\.jpg.*$/, '.jpg');
+    return text;
 }
+
 
 
 
