@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>User Entries</title>
+<style>
+/* Add your CSS styling here */
+</style>
+</head>
+<body>
+<div id="entries">Loading entries...</div>
+
+<script>
+// This script will fetch all entries and display them in the 'entries' div
+async function fetchAllEntries(userId) {
+    const baseUrl = `https://tr.instela.com/api/v2/user/${userId}/entries`;
+    const allEntries = [];
+    const entriesDiv = document.getElementById('entries');
+    
+    try {
+        // Initial request to get total pages
+        let response = await fetch(baseUrl);
+        if (response.ok) {
+            let data = await response.json();
+            let totalPages = data.pagination.total_pages;
+            
+            for (let page = 1; page <= totalPages; page++) {
+                // Fetch each page
+                response = await fetch(`${baseUrl}?page=${page}`);
+                if (response.ok) {
+                    let pageData = await response.json();
+                    allEntries.push(...pageData.entries);
+                } else {
+                    console.error(`Failed to fetch page ${page}`);
+                }
+            }
+            
+            // Display entries
+            entriesDiv.innerHTML = allEntries.map(entry => 
+                `<div class="entry">
+                    <h3>${entry.title.title}</h3>
+                    <p>${entry.entry}</p>
+                    <p>Positive Votes: ${entry.vote_positive}</p>
+                </div>`
+            ).join('');
+        } else {
+            console.error("Failed to fetch initial page");
+            entriesDiv.textContent = 'Failed to load entries.';
+        }
+    } catch (error) {
+        console.error("There was an error fetching the entries", error);
+        entriesDiv.textContent = 'Failed to load entries.';
+    }
+}
+
+fetchAllEntries('159538'); // Call the function with your user ID
+</script>
+</body>
+</html>
