@@ -141,7 +141,18 @@ async function fetchAllEntries(userId) {
 }
 
 function reformatEntry(text) {
-    // Identify and process image URLs
+       // Extract YouTube URLs from iframe tags and replace with a simple link
+    text = text.replace(/<iframe [^>]*src=["']([^"']*(youtube\.com|twitter\.com)[^"']*)["'][^>]*><\/iframe>/gi, (match, url) => {
+        // Extract the video or tweet URL from the embed URL
+        const extractedUrl = decodeURIComponent(url)
+            .replace(/.*src=(http[^&]+).*/, "$1") // Extract src if URL-encoded within another URL
+            .replace(/embed\/([a-zA-Z0-9_\-]+)/, "watch?v=$1"); // Convert YouTube embed path to watch URL
+        
+        return extractedUrl;
+    });
+
+
+ // Identify and process image URLs
     text = text.replace(/<img src="(https:\/\/instela--static-info\.cdn\.ampproject\.org\/i\/s\/instela-static\.info\/m\/[^"]+\.jpg).*?" alt="">/g, (match, url) => {
         return url; // Return the clean URL
     });
@@ -156,6 +167,7 @@ function reformatEntry(text) {
     text = text.replace(/<\/?[^>]+(>|$)/g, ""); // Remove remaining HTML tags
     text = text.replace(/(bkz: )?<a [^>]+>([^<]+)<\/a>/g, (match, bkz, linkText) => bkz ? `bkz: ${linkText}` : linkText); // Clean and format bkz links
     text = text.replace(/\.jpg.*$/, '.jpg');
+
     return text;
 }
 
