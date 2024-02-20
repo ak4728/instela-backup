@@ -1,25 +1,98 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>User Entries</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Entries Fetcher</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f4f4;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            background: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .form-input {
+            margin-bottom: 10px;
+        }
+
+        .form-input label {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .form-input input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        .form-input button {
+            padding: 10px 20px;
+            border: none;
+            background-color: #5cb85c;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .form-input button:disabled {
+            background-color: #cccccc;
+        }
+
+        .loading-text {
+            display: none;
+            color: #666;
+        }
+
+        .info-text {
+            background-color: #f9f9f9;
+            padding: 10px;
+            border-left: 3px solid #5cb85c;
+            margin-bottom: 10px;
+        }
+    </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
-<style>
-/* Add your CSS styling here */
-#loading { display: none; }
-#userIdForm { margin-bottom: 20px; }
-</style>
+
 </head>
 <body>
-<div id="userIdForm">
-    <input type="text" id="userIdInput" placeholder="Enter user link e.g., https://tr.instela.com/user/steinhammer--159538">
-    <button type="button" onclick="fetchUserEntries()">Fetch Entries</button>
-    <div id="loading">Loading...</div>
-</div>
+    <div class="container">
+        <div class="info-text">
+            <p>Please enter the link to the Instela user profile. The link should look like "https://tr.instela.com/user/username--userid".</p>
+            <p>Click "Fetch Entries" to retrieve all entries for the user. Note that fetching a large number of entries may take some time. Please be patient as the process completes and the Excel file is generated for download.</p>
+        </div>
+
+        <div class="form-input">
+            <label for="userIdInput">User Profile Link:</label>
+            <input type="text" id="userIdInput" placeholder="Enter user link e.g., https://tr.instela.com/user/username--userid">
+        </div>
+        
+        <div class="form-input">
+            <button type="button" onclick="fetchUserEntries()">Fetch Entries</button>
+        </div>
+        
+        <div class="loading-text" id="loading">Fetching entries, please wait...</div>
+    </div>
 
 
 <script>
+
+function extractIdFromLink(link) {
+// Regex to extract the user ID from the provided link
+const matches = link.match(/--(\d+)$/);
+return matches ? matches[1] : null;
+}
+
+
 function fetchUserEntries() {
     const userInput = document.getElementById('userIdInput').value;
     const userIdMatch = userInput.match(/--(\d+)$/); // Regex to extract user ID
@@ -67,15 +140,27 @@ async function fetchAllEntries(userId) {
     }
 }
 
-function reformatEntry(entry) {
-    // Reformat the entry text based on the provided specifications
-    entry = entry.replace(/<br>/g, ' '); // Replace line breaks
-    entry = entry.replace(/<div class="upload-image">.*?<img src="(.*?)".*?<\/div>/g, '$1'); // Keep only image URLs
-    entry = entry.replace(/<a.*?class="bkz ajax".*?>(.*?)<\/a>/g, 'bkz: $1'); // Simplify bkz links
-    entry = entry.replace(/<a.*?href=".*?".*?>(.*?)<\/a>/g, '$1'); // Remove links but keep the text
-    // Return the reformatted entry
-    return entry;
+function reformatEntry(text) {
+    // Convert <br> tags to newlines
+    text = text.replace(/<br\s*\/?>/gi, "\n");
+
+    // Extract and retain only the image URLs from <img> tags, ensure it stops at ".jpg"
+    text = text.replace(/<img src="(.*?.jpg).*?" alt=".*?">/gi, "$1");
+
+    // Replace the whole <div class="upload-image">...</div> with just the first extracted image URL
+    text = text.replace(/<div class="upload-image">.*?<img src="(.*?.jpg).*?".*?<\/div>/gi, "$1");
+
+    // Replace "bkz:" links with their text
+    text = text.replace(/<a.*?>(.*?)<\/a>/gi, "bkz: $1");
+
+    // Remove any remaining HTML tags
+    text = text.replace(/<[^>]*>/g, '');
+
+    return text.trim(); // Trim the text for any leading or trailing spaces
 }
+
+
+
 
 function convertToExcel(entries) {
     // Create a new workbook and add the entries
