@@ -47,11 +47,15 @@ async function fetchAllEntries(userId) {
                 const pageResponse = await fetch(`${baseUrl}?page=${page}`);
                 if (pageResponse.ok) {
                     const pageData = await pageResponse.json();
-                    allEntries = allEntries.concat(pageData.entries.map(e => reformatEntry(e.entry)));
+                    allEntries = allEntries.concat(pageData.entries);
                 } else {
                     throw new Error(`Failed to fetch page ${page}`);
                 }
             }
+            allEntries = allEntries.map(entry => ({
+                ...entry,
+                entry: reformatEntry(entry.entry),
+            }));
             convertToExcel(allEntries);
         } else {
             throw new Error('Failed to fetch initial page');
@@ -69,7 +73,7 @@ function reformatEntry(entry) {
     entry = entry.replace(/<br>/g, ' '); // Replace line breaks
     entry = entry.replace(/<div class="upload-image">.*?<img src="(.*?)".*?<\/div>/g, '$1'); // Keep only image URLs
     entry = entry.replace(/<a.*?class="bkz ajax".*?>(.*?)<\/a>/g, 'bkz: $1'); // Simplify bkz links
-
+    entry = entry.replace(/<a.*?href=".*?".*?>(.*?)<\/a>/g, '$1'); // Remove links but keep the text
     // Return the reformatted entry
     return entry;
 }
@@ -77,12 +81,13 @@ function reformatEntry(entry) {
 function convertToExcel(entries) {
     // Create a new workbook and add the entries
     const workbook = XLSX.utils.book_new();
-    const worksheet = XLSX.utils.json_to_sheet(entries.map(e => ({ entry: e })));
+    const worksheet = XLSX.utils.json_to_sheet(entries);
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Entries');
 
     // Trigger the download
     XLSX.writeFile(workbook, 'UserEntries.xlsx');
 }
-</script>
+</script
+
 </body>
 </html>
